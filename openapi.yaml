@@ -9,6 +9,35 @@ servers:
   - url: http://localhost:8001
     description: test server
     
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+    JWTToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        uid:
+          type: string
+        password:
+          type: string
+        email:
+          type: string
+        groups:
+          type: array
+          items:
+            type: string
+        admin:
+          type: boolean
+        active:
+          type: boolean
+    
 paths:
   /auth:
     get:
@@ -47,4 +76,35 @@ paths:
           description: user not found
         '401':
           description: invalid credentials
+  /auth/register:
+    post:
+      security:
+        - JWTToken: []
+      summary: create a user [admin]
+      description: adds a new user in database
+      requestBody:
+        description: user info
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: user is created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: user identifier in db
+                  apikey:
+                    type: string
+                    description: generated api key for user
+        '404':
+          description: user identified by token not found
+        '401':
+          description: invalid token
                   
