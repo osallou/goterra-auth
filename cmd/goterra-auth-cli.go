@@ -19,6 +19,7 @@ import (
 	mongoOptions "go.mongodb.org/mongo-driver/mongo/options"
 
 	terraConfig "github.com/osallou/goterra-auth/lib/config"
+	terrautils "github.com/osallou/goterra-auth/lib/utils"
 )
 
 // Version of server
@@ -32,6 +33,7 @@ type Options struct {
 	UID      *string
 	Email    *string
 	Password *string
+	Admin    *bool
 }
 
 // Register manages authentication
@@ -51,6 +53,8 @@ var Register = func(options Options) bool {
 		"uid":      options.UID,
 		"email":    options.Email,
 		"password": string(hashedPassword),
+		"apikey":   terrautils.RandStringBytes(20),
+		"admin":    options.Admin,
 	}
 	res, err := userCollection.InsertOne(ctx, user)
 	id := res.InsertedID
@@ -70,6 +74,7 @@ func main() {
 	options.UID = flag.String("uid", "", "User identifier")
 	options.Password = flag.String("password", "", "User password")
 	options.Email = flag.String("email", "", "User email")
+	options.Admin = flag.Bool("admin", false, "Is administrator?")
 	flag.BoolVar(&register, "register", false, "register a user")
 	flag.Parse()
 	if *options.UID == "" || *options.Password == "" {

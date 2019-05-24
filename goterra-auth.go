@@ -7,10 +7,12 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -24,6 +26,7 @@ import (
 
 	terraConfig "github.com/osallou/goterra-auth/lib/config"
 	terraUser "github.com/osallou/goterra-auth/lib/user"
+	terraUtils "github.com/osallou/goterra-auth/lib/utils"
 )
 
 // Version of server
@@ -32,10 +35,28 @@ var Version string
 var mongoClient mongo.Client
 var userCollection *mongo.Collection
 
-func setupResponse(w *http.ResponseWriter, req *http.Request) {
-	(*w).Header().Set("Access-Control-Allow-Origin", "*")
-	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-API-Key, Authorization")
+// CheckTokenForDeployment checks JWT token
+func CheckTokenForDeployment(authToken string) (user terraUser.User, err error) {
+	config := terraConfig.LoadConfig()
+
+	user = terraUser.User{}
+	err = nil
+
+	tokenStr := strings.Replace(authToken, "Bearer", "", -1)
+	tokenStr = strings.TrimSpace(tokenStr)
+	claims := &Claims{}
+	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
+		return []byte(config.Secret), nil
+	})
+	if err != nil || !token.Valid || claims.Audience != "goterra/auth" {
+		fmt.Printf("Token error: %v\n", err)
+		return user, errors.New("invalid token")
+	}
+
+	user.UID = claims.UID
+	user.Email = claims.Email
+	user.Groups = claims.Groups
+	return user, err
 }
 
 // HomeHandler manages base entrypoint
@@ -57,6 +78,40 @@ type Claims struct {
 type LoginData struct {
 	UID      string `json:"uid"`
 	Password string `json:"password"`
+}
+
+// RegisterHandler adds a new user
+var RegisterHandler = func(w http.ResponseWriter, r *http.Request) {
+	user, err := CheckTokenForDeployment(r.Header.Get("Authorization"))
+	if err != nil {
+		w.WriteHeader(http.StatusForbidden)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "invalid token"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+	filter := bson.M{"uid": user.UID}
+	loggedUser := terraUser.User{}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	err = userCollection.FindOne(ctx, filter).Decode(&loggedUser)
+
+	if err != nil || !loggedUser.Admin {
+		w.WriteHeader(http.StatusForbidden)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "not authorized"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+	data := &terraUser.User{}
+	data.APIKey = terraUtils.RandStringBytes(20)
+	err = json.NewDecoder(r.Body).Decode(data)
+
+	res, err := userCollection.InsertOne(ctx, data)
+	id := res.InsertedID
+	w.Header().Add("Content-Type", "application/json")
+	resp := map[string]interface{}{"id": id, "apikey": data.APIKey}
+	json.NewEncoder(w).Encode(resp)
 }
 
 // LoginHandler manages authentication
@@ -98,9 +153,9 @@ var LoginHandler = func(w http.ResponseWriter, r *http.Request) {
 
 	expirationTime := time.Now().Add(1 * time.Hour)
 	claims := &Claims{
-		UID:    "anonymous",
-		Email:  "anonymous@do-no-reply.fake",
-		Groups: make([]string, 0),
+		UID:    user.UID,
+		Email:  user.Email,
+		Groups: user.Groups,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
 			Audience:  "goterra/auth",
@@ -109,7 +164,10 @@ var LoginHandler = func(w http.ResponseWriter, r *http.Request) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, _ := token.SignedString(mySigningKey)
 
-	resp := map[string]interface{}{"token": tokenString}
+	//resp := map[string]interface{}({"token": tokenstring})
+	resp := make(map[string]string)
+	resp["token"] = tokenString
+	resp["apikey"] = user.APIKey
 	w.Header().Add("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
@@ -136,6 +194,7 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/auth", HomeHandler).Methods("GET")
 	r.HandleFunc("/auth/login", LoginHandler).Methods("POST")
+	r.HandleFunc("/auth/register", RegisterHandler).Methods("POST")
 
 	handler := cors.Default().Handler(r)
 

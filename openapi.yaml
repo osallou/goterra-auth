@@ -41,6 +41,8 @@ paths:
                 properties:
                   token:
                     type: string
+                  apikey:
+                    type: string
         '404':
           description: user not found
         '401':
