@@ -1,0 +1,48 @@
+# swagger: "2.0"
+openapi: "3.0.0"
+info:
+  title: GoTerra-Auth
+  description: GoTerra Authentication service API
+  version: 0.0.1
+  
+servers:
+  - url: http://localhost:8001
+    description: test server
+    
+paths:
+  /auth:
+    get:
+      summary: base entry point to check service
+      description: check that service is live
+      responses:
+        '200':
+          description: service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version:
+                    type: string
+                  message:
+                    type: string
+                    
+  /auth/login:
+    post:
+      summary: check credentials
+      description: checks user login/password and gets in return a JWT token
+      responses:
+        '200':
+          description: user is authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+        '404':
+          description: user not found
+        '401':
+          description: invalid credentials
+                  
