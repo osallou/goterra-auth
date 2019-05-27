@@ -18,6 +18,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"go.mongodb.org/mongo-driver/bson"
@@ -114,6 +115,41 @@ var RegisterHandler = func(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
+// APIData is message for auth service url /api/auth
+type APIData struct {
+	Key string `json:"key"`
+}
+
+// APIKeyHandler checks user api key and returns user info
+var APIKeyHandler = func(w http.ResponseWriter, r *http.Request) {
+	// config := terraConfig.LoadConfig()
+	data := &APIData{}
+	err := json.NewDecoder(r.Body).Decode(data)
+	if err != nil {
+		w.WriteHeader(http.StatusForbidden)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "invalid data"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	user := terraUser.User{}
+	filter := bson.M{"apikey": data.Key}
+	err = userCollection.FindOne(ctx, filter).Decode(&user)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "user not found"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+	w.Header().Add("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
 // LoginHandler manages authentication
 var LoginHandler = func(w http.ResponseWriter, r *http.Request) {
 	config := terraConfig.LoadConfig()
@@ -193,13 +229,16 @@ func main() {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/auth", HomeHandler).Methods("GET")
+	r.HandleFunc("/auth/api", APIKeyHandler).Methods("POST") // Checks API Key
 	r.HandleFunc("/auth/login", LoginHandler).Methods("POST")
 	r.HandleFunc("/auth/register", RegisterHandler).Methods("POST")
 
 	handler := cors.Default().Handler(r)
 
+	loggedRouter := handlers.LoggingHandler(os.Stdout, handler)
+
 	srv := &http.Server{
-		Handler: handler,
+		Handler: loggedRouter,
 		Addr:    fmt.Sprintf("%s:%d", config.Web.Listen, config.Web.Port),
 		// Good practice: enforce timeouts for servers you create!
 		WriteTimeout: 15 * time.Second,
