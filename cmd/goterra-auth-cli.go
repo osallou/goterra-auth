@@ -18,8 +18,8 @@ import (
 	mongo "go.mongodb.org/mongo-driver/mongo"
 	mongoOptions "go.mongodb.org/mongo-driver/mongo/options"
 
-	terraConfig "github.com/osallou/goterra-auth/lib/config"
 	terrautils "github.com/osallou/goterra-auth/lib/utils"
+	terraConfig "github.com/osallou/goterra-lib/lib/config"
 )
 
 // Version of server
@@ -104,5 +104,9 @@ func main() {
 
 	userCollection = mongoClient.Database(config.Mongo.DB).Collection("users")
 
-	Register(options)
+	if register {
+		Register(options)
+	} else {
+		log.Printf("no command\n")
+	}
 }

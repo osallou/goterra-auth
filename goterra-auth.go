@@ -25,9 +25,9 @@ import (
 	mongo "go.mongodb.org/mongo-driver/mongo"
 	mongoOptions "go.mongodb.org/mongo-driver/mongo/options"
 
-	terraConfig "github.com/osallou/goterra-auth/lib/config"
-	terraUser "github.com/osallou/goterra-auth/lib/user"
 	terraUtils "github.com/osallou/goterra-auth/lib/utils"
+	terraConfig "github.com/osallou/goterra-lib/lib/config"
+	terraUser "github.com/osallou/goterra-lib/lib/user"
 )
 
 // Version of server
@@ -56,7 +56,7 @@ func CheckTokenForDeployment(authToken string) (user terraUser.User, err error) 
 
 	user.UID = claims.UID
 	user.Email = claims.Email
-	user.Groups = claims.Groups
+	// user.Namespaces = claims.Namespaces
 	return user, err
 }
 
@@ -69,9 +69,9 @@ var HomeHandler = func(w http.ResponseWriter, r *http.Request) {
 
 // Claims contains JWT claims
 type Claims struct {
-	UID    string   `json:"uid"`
-	Email  string   `json:"email"`
-	Groups []string `json:"groups"`
+	UID   string `json:"uid"`
+	Email string `json:"email"`
+	// Namespaces map[string]bool `json:"namespaces"`
 	jwt.StandardClaims
 }
 
@@ -104,6 +104,7 @@ var RegisterHandler = func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(respError)
 		return
 	}
+
 	data := &terraUser.User{}
 	data.APIKey = terraUtils.RandStringBytes(20)
 	err = json.NewDecoder(r.Body).Decode(data)
@@ -176,6 +177,7 @@ var LoginHandler = func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(respError)
 		return
 	}
+
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(data.Password))
 	if err != nil {
 		w.WriteHeader(http.StatusForbidden)
@@ -189,9 +191,9 @@ var LoginHandler = func(w http.ResponseWriter, r *http.Request) {
 
 	expirationTime := time.Now().Add(1 * time.Hour)
 	claims := &Claims{
-		UID:    user.UID,
-		Email:  user.Email,
-		Groups: user.Groups,
+		UID:   user.UID,
+		Email: user.Email,
+		// Namespaces: user.Namespaces,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
 			Audience:  "goterra/auth",

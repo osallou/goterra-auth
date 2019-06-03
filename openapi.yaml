@@ -29,10 +29,6 @@ components:
           type: string
         email:
           type: string
-        groups:
-          type: array
-          items:
-            type: string
         admin:
           type: boolean
         active:
@@ -76,6 +72,23 @@ paths:
           description: user not found
         '401':
           description: invalid credentials
+  
+  /auth/api:
+    post:
+      security:
+        - ApiKeyAuth: []
+      summary: check api key
+      description: checks user api key and gets in return user info
+      responses:
+        '200':
+          description: user key is valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: user not found
+  
   /auth/register:
     post:
       security:
