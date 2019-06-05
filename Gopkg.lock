@@ -42,6 +42,17 @@
   version = "v1.7.2"
 
 [[projects]]
+  branch = "master"
+  digest = "1:771a363fe7cf65c45929c7e0e8bb9ff237308c709f84d0c149d8f1c212da51e0"
+  name = "github.com/osallou/goterra-lib"
+  packages = [
+    "lib/config",
+    "lib/user",
+  ]
+  pruneopts = "UT"
+  revision = "9c856f71347f0ffa20eebcef78e5baa0f7eddb1f"
+
+[[projects]]
   digest = "1:b0c25f00bad20d783d259af2af8666969e2fc343fa0dc9efe52936bbd67fb758"
   name = "github.com/rs/cors"
   packages = ["."]
@@ -114,7 +125,7 @@
     "pbkdf2",
   ]
   pruneopts = "UT"
-  revision = "22d7a77e9e5f409e934ed268692e56707cd169e5"
+  revision = "f99c8df09eb5bff426315721bfa5f16a99cad32c"
 
 [[projects]]
   branch = "master"
@@ -139,14 +150,6 @@
   revision = "342b2e1fbaa52c93f31447ad2c6abc048c63e475"
   version = "v0.3.2"
 
-[[projects]]
-  digest = "1:4d2e5a73dc1500038e504a8d78b986630e3626dc027bc030ba5c75da257cdb96"
-  name = "gopkg.in/yaml.v2"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "51d6538a90f86fe93ac480b35f37b2be17fef232"
-  version = "v2.2.2"
-
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
@@ -154,12 +157,13 @@
     "github.com/dgrijalva/jwt-go",
     "github.com/gorilla/handlers",
     "github.com/gorilla/mux",
+    "github.com/osallou/goterra-lib/lib/config",
+    "github.com/osallou/goterra-lib/lib/user",
     "github.com/rs/cors",
     "go.mongodb.org/mongo-driver/bson",
     "go.mongodb.org/mongo-driver/mongo",
     "go.mongodb.org/mongo-driver/mongo/options",
     "golang.org/x/crypto/bcrypt",
-    "gopkg.in/yaml.v2",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
