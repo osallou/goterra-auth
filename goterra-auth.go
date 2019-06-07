@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/oauth2"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/handlers"
@@ -28,7 +29,14 @@ import (
 	terraUtils "github.com/osallou/goterra-auth/lib/utils"
 	terraConfig "github.com/osallou/goterra-lib/lib/config"
 	terraUser "github.com/osallou/goterra-lib/lib/user"
+
+	oidc "github.com/coreos/go-oidc"
+	// "golang.org/x/net/context"
 )
+
+// Openid
+var openidctx context.Context
+var provider *oidc.Provider
 
 // Version of server
 var Version string
@@ -151,6 +159,37 @@ var APIKeyHandler = func(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
+// MeHandler gets user info
+var MeHandler = func(w http.ResponseWriter, r *http.Request) {
+	user, err := CheckTokenForDeployment(r.Header.Get("Authorization"))
+	if err != nil {
+		w.WriteHeader(http.StatusForbidden)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "invalid token"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	me := terraUser.User{}
+	filter := bson.M{"uid": user.UID}
+	err = userCollection.FindOne(ctx, filter).Decode(&me)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "user not found"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+
+	me.Password = "*****"
+
+	w.Header().Add("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(me)
+}
+
 // LoginHandler manages authentication
 var LoginHandler = func(w http.ResponseWriter, r *http.Request) {
 	config := terraConfig.LoadConfig()
@@ -212,6 +251,27 @@ var LoginHandler = func(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	config := terraConfig.LoadConfig()
+	// Openid
+	openidctx = context.Background()
+	var googleConfig oauth2.Config
+	var verifier *oidc.IDTokenVerifier
+	if os.Getenv("GOOGLE_OAUTH2_CLIENT_ID") != "" {
+		provider, _ = oidc.NewProvider(openidctx, "https://accounts.google.com")
+		oidcConfig := &oidc.Config{
+			ClientID: os.Getenv("GOOGLE_OAUTH2_CLIENT_ID"),
+		}
+		verifier = provider.Verifier(oidcConfig)
+
+		googleConfig = oauth2.Config{
+			ClientID:     os.Getenv("GOOGLE_OAUTH2_CLIENT_ID"),
+			ClientSecret: os.Getenv("GOOGLE_OAUTH2_CLIENT_SECRET"),
+			Endpoint:     provider.Endpoint(),
+			RedirectURL:  fmt.Sprintf("%s/app/auth/oidc/google/callback", config.URL),
+			Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
+		}
+	}
+	state := "gotauth"
+
 	consulErr := terraConfig.ConsulDeclare("got-auth", "/auth")
 	if consulErr != nil {
 		fmt.Printf("Failed to register: %s", consulErr.Error())
@@ -238,6 +298,97 @@ func main() {
 	r.HandleFunc("/auth/api", APIKeyHandler).Methods("POST") // Checks API Key
 	r.HandleFunc("/auth/login", LoginHandler).Methods("POST")
 	r.HandleFunc("/auth/register", RegisterHandler).Methods("POST")
+	r.HandleFunc("/auth/me", MeHandler).Methods("GET")
+
+	r.HandleFunc("/auth/oidc/google", func(w http.ResponseWriter, r *http.Request) {
+		if os.Getenv("GOOGLE_OAUTH2_CLIENT_ID") == "" {
+			w.WriteHeader(http.StatusNotFound)
+		}
+		http.Redirect(w, r, googleConfig.AuthCodeURL(state), http.StatusFound)
+	})
+
+	r.HandleFunc("/auth/oidc/google/callback", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("state") != state {
+			http.Error(w, "state did not match", http.StatusBadRequest)
+			return
+		}
+
+		oauth2Token, err := googleConfig.Exchange(openidctx, r.URL.Query().Get("code"))
+		if err != nil {
+			http.Error(w, "Failed to exchange token: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		rawIDToken, ok := oauth2Token.Extra("id_token").(string)
+		if !ok {
+			http.Error(w, "No id_token field in oauth2 token.", http.StatusInternalServerError)
+			return
+		}
+		idToken, err := verifier.Verify(openidctx, rawIDToken)
+		if err != nil {
+			http.Error(w, "Failed to verify ID Token: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		oauth2Token.AccessToken = "****"
+
+		resp := struct {
+			OAuth2Token   *oauth2.Token
+			IDTokenClaims *json.RawMessage // ID Token payload is just JSON.
+		}{oauth2Token, new(json.RawMessage)}
+
+		if err := idToken.Claims(&resp.IDTokenClaims); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		userInfo := make(map[string]string)
+		json.Unmarshal(*resp.IDTokenClaims, &userInfo)
+		// Check if user exists, if no, create it
+		filter := bson.M{"uid": userInfo["email"]}
+		loggedUser := terraUser.User{}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		err = userCollection.FindOne(ctx, filter).Decode(&loggedUser)
+		if err == mongo.ErrNoDocuments {
+			loggedUser = terraUser.User{
+				UID:      userInfo["email"],
+				Password: terraUtils.RandStringBytes(20),
+				Admin:    false,
+				Email:    userInfo["email"],
+				Logged:   true,
+				APIKey:   terraUtils.RandStringBytes(20),
+			}
+			_, err := userCollection.InsertOne(ctx, &loggedUser)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			fmt.Printf("User already exists\n")
+		}
+
+		mySigningKey := []byte(config.Secret)
+
+		expirationTime := time.Now().Add(24 * time.Hour)
+		claims := &Claims{
+			UID:   loggedUser.UID,
+			Email: loggedUser.Email,
+			// Namespaces: user.Namespaces,
+			StandardClaims: jwt.StandardClaims{
+				ExpiresAt: expirationTime.Unix(),
+				Audience:  "goterra/auth",
+			},
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+		tokenString, _ := token.SignedString(mySigningKey)
+
+		userToken := make(map[string]string)
+		userToken["token"] = tokenString
+		userToken["apikey"] = loggedUser.APIKey
+		w.Header().Add("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(userToken)
+
+	})
 
 	handler := cors.Default().Handler(r)
 

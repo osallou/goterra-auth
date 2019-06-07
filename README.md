@@ -15,6 +15,7 @@ Users are added in database via goterra-auth-cli
 ## Supported authentications
 
 * local:  users are stored in local database
+* oidc google: user env vars GOOGLE_OAUTH2_CLIENT_ID and GOOGLE_OAUTH2_CLIENT_SECRET to enable it
 
 ## Run
 

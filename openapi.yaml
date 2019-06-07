@@ -51,7 +51,18 @@ paths:
                     type: string
                   message:
                     type: string
-                    
+  /auth/me:
+    get:
+      security:
+        - JWTToken: []
+      summary: get user info matching provided authorization
+      responses:
+        '200':
+          description: user details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'               
   /auth/login:
     post:
       summary: check credentials

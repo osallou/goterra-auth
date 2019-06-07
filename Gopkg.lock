@@ -10,6 +10,14 @@
   revision = "ec5e00d3c878b2a97bbe0884ef45ffd1b4f669f5"
 
 [[projects]]
+  digest = "1:f6e5e1bc64c2908167e6aa9a1fe0c084d515132a1c63ad5b6c84036aa06dc0c1"
+  name = "github.com/coreos/go-oidc"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "1180514eaf4d9f38d0d19eef639a1d695e066e72"
+  version = "v2.0.0"
+
+[[projects]]
   digest = "1:76dc72490af7174349349838f2fe118996381b31ea83243812a97e5a0fd5ed55"
   name = "github.com/dgrijalva/jwt-go"
   packages = ["."]
@@ -24,6 +32,14 @@
   pruneopts = "UT"
   revision = "2fee6af1a9795aafbe0253a0cfbdf668e1fb8a9a"
   version = "v1.8.0"
+
+[[projects]]
+  digest = "1:318f1c959a8a740366fce4b1e1eb2fd914036b4af58fbd0a003349b305f118ad"
+  name = "github.com/golang/protobuf"
+  packages = ["proto"]
+  pruneopts = "UT"
+  revision = "b5d812f8a3706043e23a9cd5babf2e5423744d30"
+  version = "v1.3.1"
 
 [[projects]]
   branch = "master"
@@ -125,6 +141,17 @@
   revision = "f3295577d6312aa63724ca6e3549861ec73e0230"
 
 [[projects]]
+  branch = "master"
+  digest = "1:bd9efe4e0b0f768302a1e2f0c22458149278de533e521206e5ddc71848c269a0"
+  name = "github.com/pquerna/cachecontrol"
+  packages = [
+    ".",
+    "cacheobject",
+  ]
+  pruneopts = "UT"
+  revision = "1555304b9b35fdd2b425bccf1a5613677705e7d0"
+
+[[projects]]
   digest = "1:b0c25f00bad20d783d259af2af8666969e2fc343fa0dc9efe52936bbd67fb758"
   name = "github.com/rs/cors"
   packages = ["."]
@@ -189,15 +216,39 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:d71baed52a5a67407a72b63949aa042ea68bb32fdab03e07704a4f1dc309d193"
+  digest = "1:2ebbbb9481b5021db546cd1759e656a87758280f12740d7098016249a8778595"
   name = "golang.org/x/crypto"
   packages = [
     "bcrypt",
     "blowfish",
+    "ed25519",
+    "ed25519/internal/edwards25519",
     "pbkdf2",
   ]
   pruneopts = "UT"
   revision = "f99c8df09eb5bff426315721bfa5f16a99cad32c"
+
+[[projects]]
+  branch = "master"
+  digest = "1:f8b491a7c25030a895a0e579742d07136e6958e77ef2d46e769db8eec4e58fcd"
+  name = "golang.org/x/net"
+  packages = [
+    "context",
+    "context/ctxhttp",
+  ]
+  pruneopts = "UT"
+  revision = "1492cefac77f61bc789c00f41ead8f8d7307cd21"
+
+[[projects]]
+  branch = "master"
+  digest = "1:8d1c112fb1679fa097e9a9255a786ee47383fa2549a3da71bcb1334a693ebcfe"
+  name = "golang.org/x/oauth2"
+  packages = [
+    ".",
+    "internal",
+  ]
+  pruneopts = "UT"
+  revision = "0f29369cfe4552d0e4bcddc57cc75f4d7e672a33"
 
 [[projects]]
   branch = "master"
@@ -223,6 +274,34 @@
   version = "v0.3.2"
 
 [[projects]]
+  digest = "1:6eb6e3b6d9fffb62958cf7f7d88dbbe1dd6839436b0802e194c590667a40412a"
+  name = "google.golang.org/appengine"
+  packages = [
+    "internal",
+    "internal/base",
+    "internal/datastore",
+    "internal/log",
+    "internal/remote_api",
+    "internal/urlfetch",
+    "urlfetch",
+  ]
+  pruneopts = "UT"
+  revision = "b2f4a3cf3c67576a2ee09e1fe62656a5086ce880"
+  version = "v1.6.1"
+
+[[projects]]
+  digest = "1:8c05919580be8a5be668709d7e5a69d5cd19b8ee9f23d62ce5b10d3457bf6a13"
+  name = "gopkg.in/square/go-jose.v2"
+  packages = [
+    ".",
+    "cipher",
+    "json",
+  ]
+  pruneopts = "UT"
+  revision = "730df5f748271903322feb182be83b43ebbbe27d"
+  version = "v2.3.1"
+
+[[projects]]
   digest = "1:4d2e5a73dc1500038e504a8d78b986630e3626dc027bc030ba5c75da257cdb96"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
@@ -234,6 +313,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/coreos/go-oidc",
     "github.com/dgrijalva/jwt-go",
     "github.com/gorilla/handlers",
     "github.com/gorilla/mux",
@@ -244,6 +324,7 @@
     "go.mongodb.org/mongo-driver/mongo",
     "go.mongodb.org/mongo-driver/mongo/options",
     "golang.org/x/crypto/bcrypt",
+    "golang.org/x/oauth2",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
