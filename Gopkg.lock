@@ -26,6 +26,14 @@
   version = "v3.2.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:660e6c59164572d31b7983efcddc8584a112fdf7cdd23b02417a1db16be2990d"
+  name = "github.com/fernet/fernet-go"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "9eac43b88a5efb8651d24de9b68e87567e029736"
+
+[[projects]]
   digest = "1:586ea76dbd0374d6fb649a91d70d652b7fe0ccffb8910a77468e7702e7901f3d"
   name = "github.com/go-stack/stack"
   packages = ["."]
@@ -90,12 +98,12 @@
   version = "v1.1.0"
 
 [[projects]]
-  digest = "1:a54ada9beb59fdc35b69322979e870ff0b780e03f4dc309c4c8674b94927df75"
+  digest = "1:7b893c9e1181e224506c523777dea0d16f4bd20a7627b100cc800e14229f405c"
   name = "github.com/hashicorp/go-rootcerts"
   packages = ["."]
   pruneopts = "UT"
-  revision = "63503fb4e1eca22f9ae0f90b49c5d5538a0e87eb"
-  version = "v1.0.0"
+  revision = "df8e78a645e18d56ed7bb9ae10ffb8174ab892e2"
+  version = "v1.0.1"
 
 [[projects]]
   digest = "1:67474f760e9ac3799f740db2c489e6423a4cde45520673ec123ac831ad849cb8"
@@ -131,14 +139,15 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9b6758c2d20c3dccf6157483eab3a5efc784a930c12da1eae66e66cfb5db7565"
+  digest = "1:bdc414cb1b29866d151be8136721c813b8c09a20f988e685a865b58c5054b04c"
   name = "github.com/osallou/goterra-lib"
   packages = [
     "lib/config",
+    "lib/token",
     "lib/user",
   ]
   pruneopts = "UT"
-  revision = "f3295577d6312aa63724ca6e3549861ec73e0230"
+  revision = "d6a840b0ce0a76c74f150bdf21f3f3995c483b12"
 
 [[projects]]
   branch = "master"
@@ -176,7 +185,7 @@
   revision = "73f8eece6fdcd902c185bf651de50f3828bed5ed"
 
 [[projects]]
-  digest = "1:112e3db181969c7bde733364b757bebf0d1a39b4fc1076efab6ff478e4259775"
+  digest = "1:6274d7d09c6836ab5deba524155f29c77ce0ae86e853cd6fc3a51147465f8c8f"
   name = "go.mongodb.org/mongo-driver"
   packages = [
     "bson",
@@ -211,8 +220,8 @@
     "x/network/wiremessage",
   ]
   pruneopts = "UT"
-  revision = "be02c9f9ce6b45d6e845492277a232afd6956cc3"
-  version = "v1.0.2"
+  revision = "582ff343271e8893d785ff094855498c285bce0a"
+  version = "v1.0.3"
 
 [[projects]]
   branch = "master"
@@ -237,7 +246,7 @@
     "context/ctxhttp",
   ]
   pruneopts = "UT"
-  revision = "1492cefac77f61bc789c00f41ead8f8d7307cd21"
+  revision = "461777fb6f67e8cb9d70cda16573678d085a74cf"
 
 [[projects]]
   branch = "master"
@@ -318,6 +327,7 @@
     "github.com/gorilla/handlers",
     "github.com/gorilla/mux",
     "github.com/osallou/goterra-lib/lib/config",
+    "github.com/osallou/goterra-lib/lib/token",
     "github.com/osallou/goterra-lib/lib/user",
     "github.com/rs/cors",
     "go.mongodb.org/mongo-driver/bson",

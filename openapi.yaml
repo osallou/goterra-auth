@@ -20,6 +20,13 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    Auth:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        token:
+          type: string
     User:
       type: object
       properties:
@@ -85,7 +92,7 @@ paths:
           description: invalid credentials
   
   /auth/api:
-    post:
+    get:
       security:
         - ApiKeyAuth: []
       summary: check api key

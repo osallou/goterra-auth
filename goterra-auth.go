@@ -28,6 +28,7 @@ import (
 
 	terraUtils "github.com/osallou/goterra-auth/lib/utils"
 	terraConfig "github.com/osallou/goterra-lib/lib/config"
+	terraToken "github.com/osallou/goterra-lib/lib/token"
 	terraUser "github.com/osallou/goterra-lib/lib/user"
 
 	oidc "github.com/coreos/go-oidc"
@@ -129,25 +130,43 @@ type APIData struct {
 	Key string `json:"key"`
 }
 
+// AuthData is result struct for authentication with user data and an authentication token
+type AuthData struct {
+	User  terraUser.User
+	Token []byte
+}
+
 // APIKeyHandler checks user api key and returns user info
 var APIKeyHandler = func(w http.ResponseWriter, r *http.Request) {
 	// config := terraConfig.LoadConfig()
-	data := &APIData{}
-	err := json.NewDecoder(r.Body).Decode(data)
-	if err != nil {
+	apiKey := r.Header.Get("X-API-KEY")
+	if apiKey == "" {
 		w.WriteHeader(http.StatusForbidden)
 		w.Header().Add("Content-Type", "application/json")
 		respError := map[string]interface{}{"message": "invalid data"}
 		json.NewEncoder(w).Encode(respError)
 		return
 	}
+	/*
+		data := &APIData{}
+		err := json.NewDecoder(r.Body).Decode(data)
+		if err != nil {
+			w.WriteHeader(http.StatusForbidden)
+			w.Header().Add("Content-Type", "application/json")
+			respError := map[string]interface{}{"message": "invalid data"}
+			json.NewEncoder(w).Encode(respError)
+			return
+		}
+	*/
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	user := terraUser.User{}
-	filter := bson.M{"apikey": data.Key}
-	err = userCollection.FindOne(ctx, filter).Decode(&user)
+
+	//filter := bson.M{"apikey": data.Key}
+	filter := bson.M{"apikey": apiKey}
+	err := userCollection.FindOne(ctx, filter).Decode(&user)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		w.Header().Add("Content-Type", "application/json")
@@ -155,8 +174,19 @@ var APIKeyHandler = func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(respError)
 		return
 	}
+	user.Password = ""
+	userJSON, _ := json.Marshal(user)
+	token, tokenErr := terraToken.FernetEncode(userJSON)
+	if tokenErr != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": fmt.Sprintf("failed to create token: %s", tokenErr)}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+	authData := AuthData{User: user, Token: token}
 	w.Header().Add("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
+	json.NewEncoder(w).Encode(authData)
 }
 
 // MeHandler gets user info
@@ -295,7 +325,7 @@ func main() {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/auth", HomeHandler).Methods("GET")
-	r.HandleFunc("/auth/api", APIKeyHandler).Methods("POST") // Checks API Key
+	r.HandleFunc("/auth/api", APIKeyHandler).Methods("GET") // Checks API Key
 	r.HandleFunc("/auth/login", LoginHandler).Methods("POST")
 	r.HandleFunc("/auth/register", RegisterHandler).Methods("POST")
 	r.HandleFunc("/auth/me", MeHandler).Methods("GET")
