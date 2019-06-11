@@ -139,7 +139,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:88ef2df3c5a40c65e7da50aca9ce7677008fdb7800e09506228ad2ce36b5734e"
+  digest = "1:eb9c90d3a0c9b57c058563edc20b9d11ee742aedb2dc94065901033161235f7a"
   name = "github.com/osallou/goterra-lib"
   packages = [
     "lib/config",
@@ -147,7 +147,7 @@
     "lib/user",
   ]
   pruneopts = "UT"
-  revision = "e57069ca100758f29d0469534e61690f584ee65f"
+  revision = "21b1c8b699fafab0f1670a2d8b56861ba4d54950"
 
 [[projects]]
   branch = "master"
@@ -246,7 +246,7 @@
     "context/ctxhttp",
   ]
   pruneopts = "UT"
-  revision = "461777fb6f67e8cb9d70cda16573678d085a74cf"
+  revision = "3f473d35a33aa6fdd203e306dc439b797820e3f1"
 
 [[projects]]
   branch = "master"

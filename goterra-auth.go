@@ -179,8 +179,8 @@ var APIKeyHandler = func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(respError)
 		return
 	}
-
 	authData := AuthData{User: user, Token: string(token)}
+
 	w.Header().Add("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(authData)
 }
