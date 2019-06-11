@@ -8,10 +8,10 @@ mongo:
         db: "goterraauth"
 
 url: "http://localhost:8001"
-secret: "myjwtsecret"
+
 fernet:
-        # 64 char size secret
-        - "0123456789012345012345678901234501234567890123450123456789012345"
+        # secret
+        - "0123456789"
 
 web:
         listen: "0.0.0.0"
