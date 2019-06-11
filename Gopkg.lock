@@ -139,7 +139,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:bdc414cb1b29866d151be8136721c813b8c09a20f988e685a865b58c5054b04c"
+  digest = "1:dba458975a1109562f6086704719139b712ca96f88b4386b893fab67c408636f"
   name = "github.com/osallou/goterra-lib"
   packages = [
     "lib/config",
@@ -147,7 +147,7 @@
     "lib/user",
   ]
   pruneopts = "UT"
-  revision = "d6a840b0ce0a76c74f150bdf21f3f3995c483b12"
+  revision = "36970e48d3f1189d9e09b1976563d7bcf3ba5a2c"
 
 [[projects]]
   branch = "master"

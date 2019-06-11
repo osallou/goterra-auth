@@ -7,7 +7,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -47,25 +46,21 @@ var userCollection *mongo.Collection
 
 // CheckTokenForDeployment checks JWT token
 func CheckTokenForDeployment(authToken string) (user terraUser.User, err error) {
-	config := terraConfig.LoadConfig()
+	// config := terraConfig.LoadConfig()
 
 	user = terraUser.User{}
 	err = nil
 
 	tokenStr := strings.Replace(authToken, "Bearer", "", -1)
 	tokenStr = strings.TrimSpace(tokenStr)
-	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte(config.Secret), nil
-	})
-	if err != nil || !token.Valid || claims.Audience != "goterra/auth" {
-		fmt.Printf("Token error: %v\n", err)
-		return user, errors.New("invalid token")
-	}
 
-	user.UID = claims.UID
-	user.Email = claims.Email
-	// user.Namespaces = claims.Namespaces
+	msg, msgErr := terraToken.FernetDecode([]byte(tokenStr))
+	if msgErr != nil {
+		fmt.Printf("failed to decode token\n")
+		return user, msgErr
+	}
+	json.Unmarshal(msg, &user)
+
 	return user, err
 }
 
@@ -133,7 +128,7 @@ type APIData struct {
 // AuthData is result struct for authentication with user data and an authentication token
 type AuthData struct {
 	User  terraUser.User
-	Token []byte
+	Token string
 }
 
 // APIKeyHandler checks user api key and returns user info
@@ -184,7 +179,8 @@ var APIKeyHandler = func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(respError)
 		return
 	}
-	authData := AuthData{User: user, Token: token}
+
+	authData := AuthData{User: user, Token: string(token)}
 	w.Header().Add("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(authData)
 }
