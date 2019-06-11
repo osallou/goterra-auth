@@ -134,7 +134,7 @@ type AuthData struct {
 // APIKeyHandler checks user api key and returns user info
 var APIKeyHandler = func(w http.ResponseWriter, r *http.Request) {
 	// config := terraConfig.LoadConfig()
-	apiKey := r.Header.Get("X-API-KEY")
+	apiKey := r.Header.Get("X-API-Key")
 	if apiKey == "" {
 		w.WriteHeader(http.StatusForbidden)
 		w.Header().Add("Content-Type", "application/json")
