@@ -218,7 +218,7 @@ var MeHandler = func(w http.ResponseWriter, r *http.Request) {
 
 // LoginHandler manages authentication
 var LoginHandler = func(w http.ResponseWriter, r *http.Request) {
-	config := terraConfig.LoadConfig()
+	// config := terraConfig.LoadConfig()
 	data := &LoginData{}
 	err := json.NewDecoder(r.Body).Decode(data)
 	if err != nil {
@@ -252,24 +252,18 @@ var LoginHandler = func(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mySigningKey := []byte(config.Secret)
-
-	expirationTime := time.Now().Add(1 * time.Hour)
-	claims := &Claims{
-		UID:   user.UID,
-		Email: user.Email,
-		// Namespaces: user.Namespaces,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expirationTime.Unix(),
-			Audience:  "goterra/auth",
-		},
+	userJSON, _ := json.Marshal(user)
+	token, tokenErr := terraToken.FernetEncode(userJSON)
+	if tokenErr != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "token creation error"}
+		json.NewEncoder(w).Encode(respError)
+		return
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, _ := token.SignedString(mySigningKey)
 
-	//resp := map[string]interface{}({"token": tokenstring})
 	resp := make(map[string]string)
-	resp["token"] = tokenString
+	resp["token"] = string(token)
 	resp["apikey"] = user.APIKey
 	w.Header().Add("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
@@ -393,23 +387,36 @@ func main() {
 			fmt.Printf("User already exists\n")
 		}
 
-		mySigningKey := []byte(config.Secret)
-
-		expirationTime := time.Now().Add(24 * time.Hour)
-		claims := &Claims{
-			UID:   loggedUser.UID,
-			Email: loggedUser.Email,
-			// Namespaces: user.Namespaces,
-			StandardClaims: jwt.StandardClaims{
-				ExpiresAt: expirationTime.Unix(),
-				Audience:  "goterra/auth",
-			},
+		loggedUser.Password = ""
+		userJSON, _ := json.Marshal(loggedUser)
+		token, tokenErr := terraToken.FernetEncode(userJSON)
+		if tokenErr != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Header().Add("Content-Type", "application/json")
+			respError := map[string]interface{}{"message": "token creation error"}
+			json.NewEncoder(w).Encode(respError)
+			return
 		}
-		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-		tokenString, _ := token.SignedString(mySigningKey)
+
+		/*
+			mySigningKey := []byte(config.Secret)
+
+			expirationTime := time.Now().Add(24 * time.Hour)
+			claims := &Claims{
+				UID:   loggedUser.UID,
+				Email: loggedUser.Email,
+				// Namespaces: user.Namespaces,
+				StandardClaims: jwt.StandardClaims{
+					ExpiresAt: expirationTime.Unix(),
+					Audience:  "goterra/auth",
+				},
+			}
+			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+			tokenString, _ := token.SignedString(mySigningKey)
+		*/
 
 		userToken := make(map[string]string)
-		userToken["token"] = tokenString
+		userToken["token"] = string(token)
 		userToken["apikey"] = loggedUser.APIKey
 		w.Header().Add("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(userToken)
