@@ -13,12 +13,14 @@ RUN dep ensure
 
 # Install the package
 RUN go build goterra-auth.go
+RUN go build cmd/goterra-auth-cli.go
 RUN cp goterra-auth.yml.example goterra.yml
 
 FROM alpine:latest  
 RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 COPY --from=0 /go/src/github.com/osallou/goterra-auth/goterra-auth .
+COPY --from=0 /go/src/github.com/osallou/goterra-auth/goterra-auth-cli .
 COPY --from=0 /go/src/github.com/osallou/goterra-auth/goterra.yml .
 RUN mkdir /lib64 && ln -s /lib/libc.musl-x86_64.so.1 /lib64/ld-linux-x86-64.so.2
 CMD ["./goterra-auth"]

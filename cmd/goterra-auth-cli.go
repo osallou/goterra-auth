@@ -49,11 +49,13 @@ var Register = func(options Options) bool {
 		return false
 	}
 
+	apiKey := terrautils.RandStringBytes(20)
+
 	user := bson.M{
 		"uid":      options.UID,
 		"email":    options.Email,
 		"password": string(hashedPassword),
-		"apikey":   terrautils.RandStringBytes(20),
+		"apikey":   apiKey,
 		"admin":    options.Admin,
 	}
 	res, err := userCollection.InsertOne(ctx, user)
@@ -62,7 +64,7 @@ var Register = func(options Options) bool {
 		log.Printf("[ERROR] Failed to create user\n")
 		return false
 	}
-	log.Printf("[DEBUG] User created, id:%s", id)
+	log.Printf("[DEBUG] User created, id:%s, apikey: %s", id, apiKey)
 	return true
 
 }
