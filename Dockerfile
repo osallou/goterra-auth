@@ -12,7 +12,7 @@ RUN go get -u github.com/golang/dep/cmd/dep
 RUN dep ensure
 
 # Install the package
-RUN go build goterra-auth.go
+RUN go build -ldflags "-X  main.Version=`git rev-parse --short HEAD`" goterra-auth.go
 RUN go build cmd/goterra-auth-cli.go
 RUN cp goterra-auth.yml.example goterra.yml
 
