@@ -87,31 +87,56 @@ type LoginData struct {
 
 // RegisterHandler adds a new user
 var RegisterHandler = func(w http.ResponseWriter, r *http.Request) {
-	user, err := CheckTokenForDeployment(r.Header.Get("Authorization"))
-	if err != nil {
-		w.WriteHeader(http.StatusForbidden)
-		w.Header().Add("Content-Type", "application/json")
-		respError := map[string]interface{}{"message": "invalid token"}
-		json.NewEncoder(w).Encode(respError)
-		return
-	}
-	filter := bson.M{"uid": user.UID}
-	loggedUser := terraUser.User{}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	err = userCollection.FindOne(ctx, filter).Decode(&loggedUser)
 
-	if err != nil || !loggedUser.Admin {
-		w.WriteHeader(http.StatusForbidden)
-		w.Header().Add("Content-Type", "application/json")
-		respError := map[string]interface{}{"message": "not authorized"}
-		json.NewEncoder(w).Encode(respError)
-		return
+	allowSelfRegister := os.Getenv("GOT_FEATURE_SELF_REGISTER")
+	doAllowSelfRegister := false
+	if allowSelfRegister == "1" {
+		doAllowSelfRegister = true
 	}
 
 	data := &terraUser.User{}
+	json.NewDecoder(r.Body).Decode(data)
+
+	if data.UID == "" || data.Password == "" {
+		w.WriteHeader(http.StatusForbidden)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "invalid data, UID and password are mandatory"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+	isLogged := false
+	loggedUser, err := CheckTokenForDeployment(r.Header.Get("Authorization"))
+	if err != nil {
+		isLogged = false
+		if !doAllowSelfRegister {
+			w.WriteHeader(http.StatusForbidden)
+			w.Header().Add("Content-Type", "application/json")
+			respError := map[string]interface{}{"message": "invalid token"}
+			json.NewEncoder(w).Encode(respError)
+			return
+		}
+	} else {
+		isLogged = true
+	}
+
+	filter := bson.M{"uid": data.UID}
+	userInDb := terraUser.User{}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	err = userCollection.FindOne(ctx, filter).Decode(&userInDb)
+	if err != mongo.ErrNoDocuments {
+		w.WriteHeader(http.StatusForbidden)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "user already exists"}
+		json.NewEncoder(w).Encode(respError)
+	}
+
 	data.APIKey = terraUtils.RandStringBytes(20)
-	err = json.NewDecoder(r.Body).Decode(data)
+	if !isLogged || (isLogged && !loggedUser.Admin) {
+		data.Admin = false
+	}
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(data.Password), bcrypt.DefaultCost)
+	data.Password = string(hashedPassword)
 
 	res, err := userCollection.InsertOne(ctx, data)
 	id := res.InsertedID
