@@ -441,18 +441,6 @@ func main() {
 	})
 
 	handler := c.Handler(r)
-	/*
-		handler := cors.New(cors.Options{
-			AllowedOrigins: []string{"*"},
-			AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		}).Handler(r) */
-	/*
-		c := cors.New(cors.Options{
-			AllowedOrigins:   []string{"*"},
-			AllowCredentials: true,
-		})
-		handler := c.Handler(r)
-	*/
 
 	loggedRouter := handlers.LoggingHandler(os.Stdout, handler)
 
