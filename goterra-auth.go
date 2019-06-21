@@ -443,6 +443,7 @@ func main() {
 		userToken := make(map[string]string)
 		userToken["token"] = string(token)
 		userToken["apikey"] = loggedUser.APIKey
+		userToken["uid"] = loggedUser.UID
 		w.Header().Add("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(userToken)
 
