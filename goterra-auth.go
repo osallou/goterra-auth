@@ -423,23 +423,6 @@ func main() {
 			return
 		}
 
-		/*
-			mySigningKey := []byte(config.Secret)
-
-			expirationTime := time.Now().Add(24 * time.Hour)
-			claims := &Claims{
-				UID:   loggedUser.UID,
-				Email: loggedUser.Email,
-				// Namespaces: user.Namespaces,
-				StandardClaims: jwt.StandardClaims{
-					ExpiresAt: expirationTime.Unix(),
-					Audience:  "goterra/auth",
-				},
-			}
-			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-			tokenString, _ := token.SignedString(mySigningKey)
-		*/
-
 		userToken := make(map[string]string)
 		userToken["token"] = string(token)
 		userToken["apikey"] = loggedUser.APIKey
@@ -449,7 +432,27 @@ func main() {
 
 	})
 
-	handler := cors.Default().Handler(r)
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowCredentials: true,
+		AllowedHeaders:   []string{"Authorization"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
+		Debug:            true,
+	})
+
+	handler := c.Handler(r)
+	/*
+		handler := cors.New(cors.Options{
+			AllowedOrigins: []string{"*"},
+			AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		}).Handler(r) */
+	/*
+		c := cors.New(cors.Options{
+			AllowedOrigins:   []string{"*"},
+			AllowCredentials: true,
+		})
+		handler := c.Handler(r)
+	*/
 
 	loggedRouter := handlers.LoggingHandler(os.Stdout, handler)
 
