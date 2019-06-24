@@ -31,7 +31,6 @@ import (
 	terraUser "github.com/osallou/goterra-lib/lib/user"
 
 	oidc "github.com/coreos/go-oidc"
-	// "golang.org/x/net/context"
 )
 
 // Openid
@@ -152,20 +151,26 @@ type APIData struct {
 
 // AuthData is result struct for authentication with user data and an authentication token
 type AuthData struct {
-	User  terraUser.User
-	Token string
+	User  terraUser.User `json:"user"`
+	Token string         `json:"token"`
 }
 
 // APIKeyHandler checks user api key and returns user info
 var APIKeyHandler = func(w http.ResponseWriter, r *http.Request) {
 	// config := terraConfig.LoadConfig()
-	apiKey := r.Header.Get("X-API-Key")
-	if apiKey == "" {
-		w.WriteHeader(http.StatusForbidden)
-		w.Header().Add("Content-Type", "application/json")
-		respError := map[string]interface{}{"message": "invalid data"}
-		json.NewEncoder(w).Encode(respError)
-		return
+	apiKey := ""
+	tokenUser, tokenErr := CheckTokenForDeployment(r.Header.Get("Authorization"))
+	if tokenErr == nil {
+		apiKey = tokenUser.APIKey
+	} else {
+		apiKey := r.Header.Get("X-API-Key")
+		if apiKey == "" {
+			w.WriteHeader(http.StatusForbidden)
+			w.Header().Add("Content-Type", "application/json")
+			respError := map[string]interface{}{"message": "invalid data"}
+			json.NewEncoder(w).Encode(respError)
+			return
+		}
 	}
 	/*
 		data := &APIData{}
@@ -435,7 +440,7 @@ func main() {
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowCredentials: true,
-		AllowedHeaders:   []string{"Authorization"},
+		AllowedHeaders:   []string{"Authorization", "X-API-Key"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
 	})
 
