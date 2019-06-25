@@ -163,7 +163,7 @@ var APIKeyHandler = func(w http.ResponseWriter, r *http.Request) {
 	if tokenErr == nil {
 		apiKey = tokenUser.APIKey
 	} else {
-		apiKey := r.Header.Get("X-API-Key")
+		apiKey = r.Header.Get("X-API-Key")
 		if apiKey == "" {
 			w.WriteHeader(http.StatusForbidden)
 			w.Header().Add("Content-Type", "application/json")
