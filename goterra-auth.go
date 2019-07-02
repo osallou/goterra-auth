@@ -133,6 +133,7 @@ var RegisterHandler = func(w http.ResponseWriter, r *http.Request) {
 	data.APIKey = terraUtils.RandStringBytes(20)
 	if !isLogged || (isLogged && !loggedUser.Admin) {
 		data.Admin = false
+		data.SuperUser = false
 	}
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(data.Password), bcrypt.DefaultCost)
 	data.Password = string(hashedPassword)
@@ -172,17 +173,6 @@ var APIKeyHandler = func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	/*
-		data := &APIData{}
-		err := json.NewDecoder(r.Body).Decode(data)
-		if err != nil {
-			w.WriteHeader(http.StatusForbidden)
-			w.Header().Add("Content-Type", "application/json")
-			respError := map[string]interface{}{"message": "invalid data"}
-			json.NewEncoder(w).Encode(respError)
-			return
-		}
-	*/
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
