@@ -66,20 +66,20 @@
   version = "v1.4.0"
 
 [[projects]]
-  digest = "1:3af6be4fee7c08f81f13d36f04ffb63ad4b6b5aaba12cce96095c7c2863d4912"
+  digest = "1:cbec35fe4d5a4fba369a656a8cd65e244ea2c743007d8f6c1ccb132acf9d1296"
   name = "github.com/gorilla/mux"
   packages = ["."]
   pruneopts = "UT"
-  revision = "ed099d42384823742bba0bf9a72b53b55c9e2e38"
-  version = "v1.7.2"
+  revision = "00bdffe0f3c77e27d2cf6f5c70232a2d3e4d9c15"
+  version = "v1.7.3"
 
 [[projects]]
-  digest = "1:3db4f016af6ec500e79f6987c6ad284143b21effd504a2a8462be6c41b8198f5"
+  digest = "1:8b20ed6a6df0628913a69e4c1709537b2e26c7be4aca856bf52b431cf1ce6d90"
   name = "github.com/hashicorp/consul"
   packages = ["api"]
   pruneopts = "UT"
-  revision = "40cec98468b829e5cdaacb0629b3e23a028db688"
-  version = "v1.5.1"
+  revision = "a82e6a7fd33a0d05b9b871bcaf1d7595c9b8dedc"
+  version = "v1.5.2"
 
 [[projects]]
   digest = "1:af105c7c5dc0b4ae41991f122cae860b9600f7d226072c2a83127048c991660c"
@@ -139,7 +139,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:eb9c90d3a0c9b57c058563edc20b9d11ee742aedb2dc94065901033161235f7a"
+  digest = "1:fde4ea85300c07046fac80fbfac7bb96a9cc21592fb4dad126388fa9381af17e"
   name = "github.com/osallou/goterra-lib"
   packages = [
     "lib/config",
@@ -147,7 +147,7 @@
     "lib/user",
   ]
   pruneopts = "UT"
-  revision = "21b1c8b699fafab0f1670a2d8b56861ba4d54950"
+  revision = "4dfb57c6f34091444d63046a7b16d275fdac7b9b"
 
 [[projects]]
   branch = "master"
@@ -225,7 +225,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2ebbbb9481b5021db546cd1759e656a87758280f12740d7098016249a8778595"
+  digest = "1:6d1e6b1279da86043098d6b35e4e84f5ace42c7a3a8936025a843619b02253ea"
   name = "golang.org/x/crypto"
   packages = [
     "bcrypt",
@@ -235,7 +235,18 @@
     "pbkdf2",
   ]
   pruneopts = "UT"
-  revision = "f99c8df09eb5bff426315721bfa5f16a99cad32c"
+  revision = "4def268fd1a49955bfb3dda92fe3db4f924f2285"
+
+[[projects]]
+  branch = "master"
+  digest = "1:f8b491a7c25030a895a0e579742d07136e6958e77ef2d46e769db8eec4e58fcd"
+  name = "golang.org/x/net"
+  packages = [
+    "context",
+    "context/ctxhttp",
+  ]
+  pruneopts = "UT"
+  revision = "da137c7871d730100384dbcf36e6f8fa493aef5b"
 
 [[projects]]
   branch = "master"

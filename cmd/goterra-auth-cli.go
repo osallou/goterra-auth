@@ -34,6 +34,7 @@ type Options struct {
 	Email    *string
 	Password *string
 	Admin    *bool
+	Super    *bool
 }
 
 // Register manages authentication
@@ -57,6 +58,7 @@ var Register = func(options Options) bool {
 		"password": string(hashedPassword),
 		"apikey":   apiKey,
 		"admin":    options.Admin,
+		"super":    options.Super,
 	}
 	res, err := userCollection.InsertOne(ctx, user)
 	id := res.InsertedID
@@ -77,6 +79,7 @@ func main() {
 	options.Password = flag.String("password", "", "User password")
 	options.Email = flag.String("email", "", "User email")
 	options.Admin = flag.Bool("admin", false, "Is administrator?")
+	options.Super = flag.Bool("super", false, "Is super user?")
 	flag.BoolVar(&register, "register", false, "register a user")
 	flag.Parse()
 	if *options.UID == "" || *options.Password == "" {
