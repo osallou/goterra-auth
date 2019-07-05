@@ -19,13 +19,6 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
-    Auth:
-      type: object
-      properties:
-        user:
-          $ref: '#/components/schemas/User'
-        token:
-          type: string
     User:
       type: object
       properties:
@@ -37,8 +30,10 @@ components:
           type: string
         admin:
           type: boolean
-        active:
-          type: boolean
+        pub_key:
+          description: ssh publi key
+          type: string
+        
     
 paths:
   /auth:
@@ -68,7 +63,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'               
+                $ref: '#/components/schemas/User'
+  /auth/user:
+    get:
+      security:
+        - JWTToken: []
+      summary: get list of users [admin]
+      responses:
+        '200':
+          description: user details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    $ref: '#/components/schemas/User'  
   /auth/login:
     post:
       summary: check credentials

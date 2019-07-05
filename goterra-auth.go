@@ -205,6 +205,157 @@ var APIKeyHandler = func(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(authData)
 }
 
+//UsersHandler get all users
+var UsersHandler = func(w http.ResponseWriter, r *http.Request) {
+	user, err := CheckTokenForDeployment(r.Header.Get("Authorization"))
+	if err != nil {
+		w.WriteHeader(http.StatusForbidden)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "invalid token"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+	if !user.Admin {
+		w.WriteHeader(http.StatusForbidden)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "admin users only"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	users := make([]terraUser.User, 0)
+	filter := bson.M{}
+	cursor, err := userCollection.Find(ctx, filter)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "no user found"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+	for cursor.Next(ctx) {
+		var userdb terraUser.User
+		cursor.Decode(&userdb)
+		userdb.Password = "*****"
+		users = append(users, userdb)
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	resp := map[string]interface{}{"users": users}
+	json.NewEncoder(w).Encode(resp)
+}
+
+//UserHandler get user info
+var UserHandler = func(w http.ResponseWriter, r *http.Request) {
+	user, err := CheckTokenForDeployment(r.Header.Get("Authorization"))
+	if err != nil {
+		w.WriteHeader(http.StatusForbidden)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "invalid token"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+	vars := mux.Vars(r)
+	userID := vars["id"]
+
+	if !user.Admin && user.UID != userID {
+		w.WriteHeader(http.StatusForbidden)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "admin or user only"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	userdb := terraUser.User{}
+	filter := bson.M{
+		"uid": userID,
+	}
+	err = userCollection.FindOne(ctx, filter).Decode(&userdb)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "no user found"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+	userdb.Password = "*****"
+	w.Header().Add("Content-Type", "application/json")
+	resp := map[string]interface{}{"user": userdb}
+	json.NewEncoder(w).Encode(resp)
+}
+
+//UserUpdateHandler update user info
+var UserUpdateHandler = func(w http.ResponseWriter, r *http.Request) {
+	user, err := CheckTokenForDeployment(r.Header.Get("Authorization"))
+	if err != nil {
+		w.WriteHeader(http.StatusForbidden)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "invalid token"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+	vars := mux.Vars(r)
+	userID := vars["id"]
+
+	if !user.Admin && user.UID != userID {
+		w.WriteHeader(http.StatusForbidden)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "admin or user only"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+
+	data := &terraUser.User{}
+	err = json.NewDecoder(r.Body).Decode(data)
+	if err != nil {
+		w.Header().Add("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		respError := map[string]interface{}{"message": "failed to decode message"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	userdb := terraUser.User{}
+	filter := bson.M{
+		"uid": userID,
+	}
+	err = userCollection.FindOne(ctx, filter).Decode(&userdb)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "no user found"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+
+	userdb.Email = data.Email
+	userdb.SSHPubKey = data.SSHPubKey
+	userdb.APIKey = data.APIKey
+
+	if user.Admin {
+		userdb.Admin = data.Admin
+		userdb.SuperUser = data.SuperUser
+	}
+
+	newUser := bson.M{
+		"$set": userdb,
+	}
+	userCollection.FindOneAndUpdate(ctx, filter, newUser)
+	userdb.Password = "*****"
+	w.Header().Add("Content-Type", "application/json")
+	resp := map[string]interface{}{"user": userdb}
+	json.NewEncoder(w).Encode(resp)
+}
+
 // MeHandler gets user info
 var MeHandler = func(w http.ResponseWriter, r *http.Request) {
 	user, err := CheckTokenForDeployment(r.Header.Get("Authorization"))
@@ -339,6 +490,9 @@ func main() {
 	r.HandleFunc("/auth/login", LoginHandler).Methods("POST")
 	r.HandleFunc("/auth/register", RegisterHandler).Methods("POST")
 	r.HandleFunc("/auth/me", MeHandler).Methods("GET")
+	r.HandleFunc("/auth/user", UsersHandler).Methods("GET")
+	r.HandleFunc("/auth/user/{id}", UserHandler).Methods("GET")
+	r.HandleFunc("/auth/user/{id}", UserUpdateHandler).Methods("PUT")
 
 	r.HandleFunc("/auth/oidc/google", func(w http.ResponseWriter, r *http.Request) {
 		if os.Getenv("GOOGLE_OAUTH2_CLIENT_ID") == "" {
@@ -397,6 +551,7 @@ func main() {
 				Email:    userInfo["email"],
 				Logged:   true,
 				APIKey:   terraUtils.RandStringBytes(20),
+				Kind:     "google",
 			}
 			_, err := userCollection.InsertOne(ctx, &loggedUser)
 			if err != nil {
@@ -430,7 +585,7 @@ func main() {
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowCredentials: true,
-		AllowedHeaders:   []string{"Authorization", "X-API-Key"},
+		AllowedHeaders:   []string{"Authorization", "X-API-Key", "Content-Type"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
 	})
 
