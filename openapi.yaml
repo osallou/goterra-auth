@@ -19,6 +19,11 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    Token:
+      type: object
+      properties:
+        token:
+          type: string
     User:
       type: object
       properties:
@@ -64,6 +69,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
+  /auth/token:
+    get:
+      security:
+        - JWTToken: []
+      summary: renew token
+      responses:
+        '200':
+          description: token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
   /auth/user:
     get:
       security:

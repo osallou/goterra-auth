@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -31,6 +30,9 @@ import (
 	terraUser "github.com/osallou/goterra-lib/lib/user"
 
 	oidc "github.com/coreos/go-oidc"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 // Openid
@@ -55,7 +57,7 @@ func CheckTokenForDeployment(authToken string) (user terraUser.User, err error) 
 
 	msg, msgErr := terraToken.FernetDecode([]byte(tokenStr))
 	if msgErr != nil {
-		fmt.Printf("failed to decode token\n")
+		log.Debug().Msg("failed to decode token")
 		return user, msgErr
 	}
 	json.Unmarshal(msg, &user)
@@ -356,6 +358,33 @@ var UserUpdateHandler = func(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
+// TokenRenewHandler checks token and create a new one
+var TokenRenewHandler = func(w http.ResponseWriter, r *http.Request) {
+	user, err := CheckTokenForDeployment(r.Header.Get("Authorization"))
+	if err != nil {
+		w.WriteHeader(http.StatusForbidden)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "invalid token"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+	user.Password = "*****"
+	userJSON, _ := json.Marshal(user)
+	token, tokenErr := terraToken.FernetEncode(userJSON)
+	if tokenErr != nil {
+		log.Error().Str("uid", user.UID).Msgf("Token renew error: %s", tokenErr)
+		w.WriteHeader(http.StatusForbidden)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "failed to renew token"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+	resp := make(map[string]string)
+	resp["token"] = string(token)
+	w.Header().Add("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
 // MeHandler gets user info
 var MeHandler = func(w http.ResponseWriter, r *http.Request) {
 	user, err := CheckTokenForDeployment(r.Header.Get("Authorization"))
@@ -441,6 +470,14 @@ var LoginHandler = func(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	if os.Getenv("GOT_DEBUG") != "" {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	}
+
 	config := terraConfig.LoadConfig()
 	// Openid
 	openidctx = context.Background()
@@ -465,7 +502,7 @@ func main() {
 
 	consulErr := terraConfig.ConsulDeclare("got-auth", "/auth")
 	if consulErr != nil {
-		fmt.Printf("Failed to register: %s", consulErr.Error())
+		log.Error().Msgf("Failed to register: %s", consulErr.Error())
 		panic(consulErr)
 	}
 	mongoClient, err := mongo.NewClient(mongoOptions.Client().ApplyURI(config.Mongo.URL))
@@ -486,7 +523,8 @@ func main() {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/auth", HomeHandler).Methods("GET")
-	r.HandleFunc("/auth/api", APIKeyHandler).Methods("GET") // Checks API Key
+	r.HandleFunc("/auth/api", APIKeyHandler).Methods("GET")       // Checks API Key
+	r.HandleFunc("/auth/token", TokenRenewHandler).Methods("GET") // Renew token
 	r.HandleFunc("/auth/login", LoginHandler).Methods("POST")
 	r.HandleFunc("/auth/register", RegisterHandler).Methods("POST")
 	r.HandleFunc("/auth/me", MeHandler).Methods("GET")
@@ -559,7 +597,7 @@ func main() {
 				return
 			}
 		} else {
-			fmt.Printf("User already exists\n")
+			log.Error().Str("user", userInfo["email"]).Msg("User already exists\n")
 		}
 
 		loggedUser.Password = ""
@@ -601,6 +639,6 @@ func main() {
 		ReadTimeout:  15 * time.Second,
 	}
 
-	log.Fatal(srv.ListenAndServe())
+	srv.ListenAndServe()
 
 }
