@@ -463,9 +463,11 @@ var LoginHandler = func(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := make(map[string]string)
+	resp := make(map[string]interface{})
 	resp["token"] = string(token)
 	resp["apikey"] = user.APIKey
+	user.Password = "******"
+	resp["user"] = user
 	w.Header().Add("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
