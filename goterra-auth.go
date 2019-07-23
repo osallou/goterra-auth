@@ -37,7 +37,8 @@ import (
 
 // Openid
 var openidctx context.Context
-var provider *oidc.Provider
+var googleProvider *oidc.Provider
+var aaiProvider *oidc.Provider
 
 // Version of server
 var Version string
@@ -482,22 +483,46 @@ func main() {
 	// Openid
 	openidctx = context.Background()
 	var googleConfig oauth2.Config
-	var verifier *oidc.IDTokenVerifier
+	var googleVerifier *oidc.IDTokenVerifier
 	if os.Getenv("GOOGLE_OAUTH2_CLIENT_ID") != "" {
-		provider, _ = oidc.NewProvider(openidctx, "https://accounts.google.com")
+		googleProvider, _ = oidc.NewProvider(openidctx, "https://accounts.google.com")
 		oidcConfig := &oidc.Config{
 			ClientID: os.Getenv("GOOGLE_OAUTH2_CLIENT_ID"),
 		}
-		verifier = provider.Verifier(oidcConfig)
+		googleVerifier = googleProvider.Verifier(oidcConfig)
 
 		googleConfig = oauth2.Config{
 			ClientID:     os.Getenv("GOOGLE_OAUTH2_CLIENT_ID"),
 			ClientSecret: os.Getenv("GOOGLE_OAUTH2_CLIENT_SECRET"),
-			Endpoint:     provider.Endpoint(),
+			Endpoint:     googleProvider.Endpoint(),
 			RedirectURL:  fmt.Sprintf("%s/app/auth/oidc/google/callback", config.URL),
 			Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
 		}
 	}
+	// aaiConfig
+	var aaiConfig oauth2.Config
+	var aaiVerifier *oidc.IDTokenVerifier
+	if os.Getenv("AAI_OAUTH2_CLIENT_ID") != "" {
+		var aaiErr error
+		aaiProvider, aaiErr = oidc.NewProvider(openidctx, "https://login.elixir-czech.org/oidc/")
+		if aaiErr != nil {
+			log.Error().Msgf("AAI OIDC error %s", aaiErr)
+			os.Exit(1)
+		}
+		oidcConfig := &oidc.Config{
+			ClientID: os.Getenv("AAI_OAUTH2_CLIENT_ID"),
+		}
+		aaiVerifier = aaiProvider.Verifier(oidcConfig)
+
+		aaiConfig = oauth2.Config{
+			ClientID:     os.Getenv("AAI_OAUTH2_CLIENT_ID"),
+			ClientSecret: os.Getenv("AAI_OAUTH2_CLIENT_SECRET"),
+			Endpoint:     aaiProvider.Endpoint(),
+			RedirectURL:  fmt.Sprintf("%s/app/auth/oidc/aai/callback", config.URL),
+			Scopes:       []string{oidc.ScopeOpenID, "email"},
+		}
+	}
+
 	state := "gotauth"
 
 	consulErr := terraConfig.ConsulDeclare("got-auth", "/auth")
@@ -555,7 +580,7 @@ func main() {
 			http.Error(w, "No id_token field in oauth2 token.", http.StatusInternalServerError)
 			return
 		}
-		idToken, err := verifier.Verify(openidctx, rawIDToken)
+		idToken, err := googleVerifier.Verify(openidctx, rawIDToken)
 		if err != nil {
 			http.Error(w, "Failed to verify ID Token: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -598,6 +623,94 @@ func main() {
 			}
 		} else {
 			log.Error().Str("user", userInfo["email"]).Msg("User already exists\n")
+		}
+
+		loggedUser.Password = ""
+		userJSON, _ := json.Marshal(loggedUser)
+		token, tokenErr := terraToken.FernetEncode(userJSON)
+		if tokenErr != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Header().Add("Content-Type", "application/json")
+			respError := map[string]interface{}{"message": "token creation error"}
+			json.NewEncoder(w).Encode(respError)
+			return
+		}
+
+		userToken := make(map[string]string)
+		userToken["token"] = string(token)
+		userToken["apikey"] = loggedUser.APIKey
+		userToken["uid"] = loggedUser.UID
+		w.Header().Add("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(userToken)
+
+	})
+
+	r.HandleFunc("/auth/oidc/aai", func(w http.ResponseWriter, r *http.Request) {
+		if os.Getenv("AAI_OAUTH2_CLIENT_ID") == "" {
+			w.WriteHeader(http.StatusNotFound)
+		}
+		http.Redirect(w, r, aaiConfig.AuthCodeURL(state), http.StatusFound)
+	})
+
+	r.HandleFunc("/auth/oidc/aai/callback", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("state") != state {
+			http.Error(w, "state did not match", http.StatusBadRequest)
+			return
+		}
+
+		oauth2Token, err := aaiConfig.Exchange(openidctx, r.URL.Query().Get("code"))
+		if err != nil {
+			http.Error(w, "Failed to exchange token: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		rawIDToken, ok := oauth2Token.Extra("id_token").(string)
+		if !ok {
+			http.Error(w, "No id_token field in oauth2 token.", http.StatusInternalServerError)
+			return
+		}
+		idToken, err := aaiVerifier.Verify(openidctx, rawIDToken)
+		if err != nil {
+			http.Error(w, "Failed to verify ID Token: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		oauth2Token.AccessToken = "****"
+
+		resp := struct {
+			OAuth2Token   *oauth2.Token
+			IDTokenClaims *json.RawMessage // ID Token payload is just JSON.
+		}{oauth2Token, new(json.RawMessage)}
+
+		if err := idToken.Claims(&resp.IDTokenClaims); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		userInfo := make(map[string]string)
+		json.Unmarshal(*resp.IDTokenClaims, &userInfo)
+		// Check if user exists, if no, create it
+		filter := bson.M{"uid": userInfo["email"]}
+		loggedUser := terraUser.User{}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		err = userCollection.FindOne(ctx, filter).Decode(&loggedUser)
+		if err == mongo.ErrNoDocuments {
+			loggedUser = terraUser.User{
+				UID:      userInfo["sub"],
+				Password: terraUtils.RandStringBytes(20),
+				Admin:    false,
+				Email:    userInfo["email"],
+				Logged:   true,
+				APIKey:   terraUtils.RandStringBytes(20),
+				Kind:     "aai",
+			}
+			_, err := userCollection.InsertOne(ctx, &loggedUser)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			log.Error().Str("user", userInfo["sub"]).Msg("User already exists\n")
 		}
 
 		loggedUser.Password = ""
