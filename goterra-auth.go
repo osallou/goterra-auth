@@ -293,6 +293,71 @@ var UserHandler = func(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
+// PasswordData is expected message to update user password
+type PasswordData struct {
+	Password string `json:"password"`
+}
+
+//UserPasswordUpdateHandler update user password
+var UserPasswordUpdateHandler = func(w http.ResponseWriter, r *http.Request) {
+	user, err := CheckTokenForDeployment(r.Header.Get("Authorization"))
+	if err != nil {
+		w.WriteHeader(http.StatusForbidden)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "invalid token"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+	vars := mux.Vars(r)
+	userID := vars["id"]
+
+	if !user.Admin && user.UID != userID {
+		w.WriteHeader(http.StatusForbidden)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "admin or user only"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+
+	data := &PasswordData{}
+	err = json.NewDecoder(r.Body).Decode(data)
+	if err != nil {
+		w.Header().Add("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		respError := map[string]interface{}{"message": "failed to decode message"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	userdb := terraUser.User{}
+	filter := bson.M{
+		"uid": userID,
+	}
+	err = userCollection.FindOne(ctx, filter).Decode(&userdb)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		w.Header().Add("Content-Type", "application/json")
+		respError := map[string]interface{}{"message": "no user found"}
+		json.NewEncoder(w).Encode(respError)
+		return
+	}
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(data.Password), bcrypt.DefaultCost)
+	userdb.Password = string(hashedPassword)
+
+	newUser := bson.M{
+		"$set": userdb,
+	}
+	userCollection.FindOneAndUpdate(ctx, filter, newUser)
+	userdb.Password = "*****"
+	w.Header().Add("Content-Type", "application/json")
+	resp := map[string]interface{}{"user": userdb}
+	json.NewEncoder(w).Encode(resp)
+}
+
 //UserUpdateHandler update user info
 var UserUpdateHandler = func(w http.ResponseWriter, r *http.Request) {
 	user, err := CheckTokenForDeployment(r.Header.Get("Authorization"))
@@ -558,6 +623,7 @@ func main() {
 	r.HandleFunc("/auth/user", UsersHandler).Methods("GET")
 	r.HandleFunc("/auth/user/{id}", UserHandler).Methods("GET")
 	r.HandleFunc("/auth/user/{id}", UserUpdateHandler).Methods("PUT")
+	r.HandleFunc("/auth/user/{id}/password", UserPasswordUpdateHandler).Methods("PUT")
 
 	r.HandleFunc("/auth/oidc/google", func(w http.ResponseWriter, r *http.Request) {
 		if os.Getenv("GOOGLE_OAUTH2_CLIENT_ID") == "" {
@@ -609,9 +675,10 @@ func main() {
 		defer cancel()
 		err = userCollection.FindOne(ctx, filter).Decode(&loggedUser)
 		if err == mongo.ErrNoDocuments {
+			hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(terraUtils.RandStringBytes(20)), bcrypt.DefaultCost)
 			loggedUser = terraUser.User{
 				UID:      userInfo["email"],
-				Password: terraUtils.RandStringBytes(20),
+				Password: string(hashedPassword),
 				Admin:    false,
 				Email:    userInfo["email"],
 				Logged:   true,
@@ -697,9 +764,10 @@ func main() {
 		defer cancel()
 		err = userCollection.FindOne(ctx, filter).Decode(&loggedUser)
 		if err == mongo.ErrNoDocuments {
+			hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(terraUtils.RandStringBytes(20)), bcrypt.DefaultCost)
 			loggedUser = terraUser.User{
 				UID:      userInfo["sub"],
-				Password: terraUtils.RandStringBytes(20),
+				Password: string(hashedPassword),
 				Admin:    false,
 				Email:    userInfo["email"],
 				Logged:   true,

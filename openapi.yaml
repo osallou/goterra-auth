@@ -24,6 +24,11 @@ components:
       properties:
         token:
           type: string
+    PasswordUpdate:
+      type: object
+      properties:
+        password:
+          type: string
     User:
       type: object
       properties:
@@ -132,6 +137,71 @@ paths:
                 $ref: '#/components/schemas/User'
         '404':
           description: user not found
+  /auth/user/{id}:
+    put:
+      security:
+        - JWTToken: []
+      summary: update user info [admin or user]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: user info
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: user is updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '404':
+          description: user not found
+        '401':
+          description: invalid token
+
+  /auth/user/{id}/password:
+    put:
+      security:
+        - JWTToken: []
+      summary: update user password [admin or user]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: user info
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordUpdate'
+      responses:
+        '200':
+          description: user is updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '404':
+          description: user not found
+        '401':
+          description: invalid token
   
   /auth/register:
     post:
