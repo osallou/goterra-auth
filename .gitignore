@@ -2,3 +2,4 @@ goterra-auth.yml
 goterra-auth
 _vendor*
 vendor
+oidc.yml
