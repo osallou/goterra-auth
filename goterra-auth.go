@@ -47,10 +47,11 @@ var Version string
 var mongoClient mongo.Client
 var userCollection *mongo.Collection
 
-// UserLogged is message sent when a user logs
-type UserLogged struct {
-	UID  string
-	Kind string
+// UserAction is message sent when a user logs, is deleted, ...
+type UserAction struct {
+	Action string
+	UID    string
+	Kind   string
 }
 
 //userLoggedMessage sends a message to rabbitmq exchange
@@ -90,7 +91,7 @@ func userLoggedMessage(uid string, kind string) error {
 		return err
 	}
 
-	msg := &UserLogged{UID: uid, Kind: kind}
+	msg := &UserAction{Action: "logged", UID: uid, Kind: kind}
 	body, _ := json.Marshal(msg)
 	err = ch.Publish(
 		"gotuser", // exchange
