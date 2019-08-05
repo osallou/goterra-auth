@@ -79,13 +79,13 @@ func userPubkeyMessage(uid string, kind string, pubkey string) error {
 	}
 
 	err = ch.ExchangeDeclare(
-		"gotuser", // name
-		"fanout",  // type
-		true,      // durable
-		false,     // auto-deleted
-		false,     // internal
-		false,     // no-wait
-		nil,       // arguments
+		"gotevent", // name
+		"fanout",   // type
+		true,       // durable
+		false,      // auto-deleted
+		false,      // internal
+		false,      // no-wait
+		nil,        // arguments
 	)
 	if err != nil {
 		log.Error().Msgf("[ERROR] failed to connect to open exchange\n")
@@ -93,17 +93,17 @@ func userPubkeyMessage(uid string, kind string, pubkey string) error {
 	}
 
 	msg := &UserAction{
-		Action: "ssh",
+		Action: "pubkey",
 		UID:    uid,
 		Kind:   kind,
 		Data:   pubkey,
 	}
 	body, _ := json.Marshal(msg)
 	err = ch.Publish(
-		"gotuser", // exchange
-		"",        // routing key
-		false,     // mandatory
-		false,     // immediate
+		"gotevent", // exchange
+		"",         // routing key
+		false,      // mandatory
+		false,      // immediate
 		amqp.Publishing{
 			ContentType: "text/plain",
 			Body:        []byte(body),
@@ -115,8 +115,8 @@ func userPubkeyMessage(uid string, kind string, pubkey string) error {
 	return nil
 }
 
-//userLoggedMessage sends a message to rabbitmq exchange
-func userLoggedMessage(uid string, kind string) error {
+//userCreatedMessage sends a message to rabbitmq exchange
+func userCreatedMessage(uid string, kind string) error {
 	if os.Getenv("GOT_MOCK_AMQP") == "1" {
 		return nil
 	}
@@ -139,26 +139,26 @@ func userLoggedMessage(uid string, kind string) error {
 	}
 
 	err = ch.ExchangeDeclare(
-		"gotuser", // name
-		"fanout",  // type
-		true,      // durable
-		false,     // auto-deleted
-		false,     // internal
-		false,     // no-wait
-		nil,       // arguments
+		"gotevent", // name
+		"fanout",   // type
+		true,       // durable
+		false,      // auto-deleted
+		false,      // internal
+		false,      // no-wait
+		nil,        // arguments
 	)
 	if err != nil {
 		log.Error().Msgf("[ERROR] failed to connect to open exchange\n")
 		return err
 	}
 
-	msg := &UserAction{Action: "logged", UID: uid, Kind: kind}
+	msg := &UserAction{Action: "user_create", UID: uid, Kind: kind}
 	body, _ := json.Marshal(msg)
 	err = ch.Publish(
-		"gotuser", // exchange
-		"",        // routing key
-		false,     // mandatory
-		false,     // immediate
+		"gotevent", // exchange
+		"",         // routing key
+		false,      // mandatory
+		false,      // immediate
 		amqp.Publishing{
 			ContentType: "text/plain",
 			Body:        []byte(body),
@@ -264,6 +264,8 @@ var RegisterHandler = func(w http.ResponseWriter, r *http.Request) {
 	}
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(data.Password), bcrypt.DefaultCost)
 	data.Password = string(hashedPassword)
+
+	userCreatedMessage(data.UID, data.Kind)
 
 	res, err := userCollection.InsertOne(ctx, data)
 	id := res.InsertedID
@@ -658,8 +660,6 @@ var LoginHandler = func(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userLoggedMessage(user.UID, user.Kind)
-
 	resp := make(map[string]interface{})
 	resp["token"] = string(token)
 	resp["apikey"] = user.APIKey
@@ -822,11 +822,10 @@ func main() {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+			userCreatedMessage(loggedUser.UID, loggedUser.Kind)
 		} else {
 			log.Error().Str("user", userInfo["email"]).Msg("User already exists\n")
 		}
-
-		userLoggedMessage(loggedUser.UID, loggedUser.Kind)
 
 		loggedUser.Password = ""
 		userJSON, _ := json.Marshal(loggedUser)
@@ -913,11 +912,10 @@ func main() {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+			userCreatedMessage(loggedUser.UID, loggedUser.Kind)
 		} else {
 			log.Error().Str("user", userInfo["sub"]).Msg("User already exists\n")
 		}
-
-		userLoggedMessage(loggedUser.UID, loggedUser.Kind)
 
 		loggedUser.Password = ""
 		userJSON, _ := json.Marshal(loggedUser)
