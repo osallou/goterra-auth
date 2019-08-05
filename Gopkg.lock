@@ -183,6 +183,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:d6bb6f3240a488ffe5bb6952b513569d009927dcb20ff94885f87b76cef2b698"
+  name = "github.com/streadway/amqp"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "75d898a42a940fbc854dfd1a4199eabdc00cf024"
+
+[[projects]]
+  branch = "master"
   digest = "1:40fdfd6ab85ca32b6935853bbba35935dcb1d796c8135efd85947566c76e662e"
   name = "github.com/xdg/scram"
   packages = ["."]
@@ -345,6 +353,7 @@
     "github.com/rs/cors",
     "github.com/rs/zerolog",
     "github.com/rs/zerolog/log",
+    "github.com/streadway/amqp",
     "go.mongodb.org/mongo-driver/bson",
     "go.mongodb.org/mongo-driver/mongo",
     "go.mongodb.org/mongo-driver/mongo/options",
