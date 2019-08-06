@@ -27,6 +27,7 @@ import (
 
 	terraUtils "github.com/osallou/goterra-auth/lib/utils"
 	terraConfig "github.com/osallou/goterra-lib/lib/config"
+	terraModel "github.com/osallou/goterra-lib/lib/model"
 	terraToken "github.com/osallou/goterra-lib/lib/token"
 	terraUser "github.com/osallou/goterra-lib/lib/user"
 
@@ -46,14 +47,6 @@ var Version string
 
 var mongoClient mongo.Client
 var userCollection *mongo.Collection
-
-// UserAction is message sent when a user logs, is deleted, ...
-type UserAction struct {
-	Action string
-	UID    string
-	Kind   string
-	Data   string
-}
 
 //userCreatedMessage sends a message to rabbitmq exchange
 func userCreatedMessage(uid string, kind string) error {
@@ -92,7 +85,7 @@ func userCreatedMessage(uid string, kind string) error {
 		return err
 	}
 
-	msg := &UserAction{Action: "user_create", UID: uid, Kind: kind}
+	msg := &terraModel.UserAction{Action: "user_create", UID: uid, Data: kind}
 	body, _ := json.Marshal(msg)
 	err = ch.Publish(
 		"gotevent", // exchange
