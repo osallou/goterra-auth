@@ -820,7 +820,7 @@ func main() {
 		userInfo := make(map[string]string)
 		json.Unmarshal(*resp.IDTokenClaims, &userInfo)
 		// Check if user exists, if no, create it
-		filter := bson.M{"uid": userInfo["email"]}
+		filter := bson.M{"uid": userInfo["sub"]}
 		loggedUser := terraUser.User{}
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
