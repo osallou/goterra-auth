@@ -41,7 +41,7 @@ components:
         admin:
           type: boolean
         pub_key:
-          description: ssh publi key
+          description: ssh public key
           type: string
         
     
