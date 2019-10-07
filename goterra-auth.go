@@ -544,6 +544,8 @@ var UserUpdateHandler = func(w http.ResponseWriter, r *http.Request) {
 	userCollection.FindOneAndUpdate(ctx, filter, newUser)
 	userdb.Password = "*****"
 
+	userUpdatedMessage(userID, userdb)
+
 	w.Header().Add("Content-Type", "application/json")
 	resp := map[string]interface{}{"user": userdb}
 	json.NewEncoder(w).Encode(resp)
